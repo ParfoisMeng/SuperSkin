@@ -2,36 +2,42 @@ package com.parfois.skin
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.parfois.skin.UISkin.bindSkinValue
 import com.parfois.skin.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
-    private val binding: ActivityMainBinding by lazy { ActivityMainBinding.inflate(layoutInflater) }
+    private val actBinding: ActivityMainBinding by lazy { ActivityMainBinding.inflate(layoutInflater) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(binding.root)
+        setContentView(actBinding.root)
 
-
-        binding.clPage.bindSkinValue(SkinKey.PAGE_BG)
-        binding.tvTitle.bindSkinValue(SkinKey.TITLE_BG_COLOR, SkinKey.TITLE_TEXT_COLOR)
-        binding.tvOne.bindSkinValue(SkinKey.ONE_TEXT_COLOR)
-        binding.btnTwo.bindSkinValue(SkinKey.TWO_TEXT_COLOR, SkinKey.TWO_BG_COLOR)
-        binding.ivThree.bindSkinValue(SkinKey.THREE_IMG)
-        binding.btnSkinChange.bindSkinValue(
-            SkinKey.SKIN_CHANGE_TEXT_COLOR,
-            SkinKey.SKIN_CHANGE_BG_COLOR
+        actBinding.clPage.bindSkinValue(SkinConst.PAGE_BG)
+        actBinding.tvTitle.bindSkinValue(SkinConst.TITLE_BG_COLOR, SkinConst.TITLE_TEXT_COLOR)
+        actBinding.tvOne.bindSkinValue(SkinConst.ONE_TEXT_COLOR)
+        actBinding.btnTwo.bindSkinValue(SkinConst.TWO_TEXT_COLOR, SkinConst.TWO_BG_COLOR)
+        actBinding.ivThree.bindSkinValue(SkinConst.THREE_IMG)
+        actBinding.rvList.bindSkinValue(SkinConst.LIST_BG_COLOR)
+        actBinding.btnSkinChange.bindSkinValue(
+            SkinConst.SKIN_CHANGE_TEXT_COLOR,
+            SkinConst.SKIN_CHANGE_BG_COLOR
         )
         UISkin.binding(this)
 
+        val list = arrayListOf("111", "222", "333", "444", "555", "666")
+        val adapter = SimpleAdapter(list)
+        actBinding.rvList.adapter = adapter
+
         var count = 0
-        binding.btnSkinChange.setOnClickListener {
+        actBinding.btnSkinChange.setOnClickListener {
             count++
             if (count % 2 == 0) {
-                UISkin.update(Skins.SkinOne)
+                UISkin.change(SkinConst.SkinOne)
             } else {
-                UISkin.update(Skins.SkinTwo)
+                UISkin.change(SkinConst.SkinTwo)
             }
+            adapter.addData("btnSkinChange $count")
         }
     }
 }

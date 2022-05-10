@@ -4,92 +4,42 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.view.View
-import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import java.io.IOException
 import java.io.InputStream
-
-private typealias Skin = HashMap<SkinKey, String>
-private fun skinOf(vararg pairs: Pair<SkinKey, String>) = hashMapOf(*pairs)
-
-enum class SkinKey(key: String) {
-    PAGE_BG("page_bg"),
-    TITLE_BG_COLOR("title_bg"),
-    TITLE_TEXT_COLOR("title_text_color"),
-    VIEW_LINE_BG_COLOR("view_line_bg"),
-    ONE_TEXT_COLOR("one_text_color"),
-    TWO_TEXT_COLOR("two_text_color"),
-    TWO_BG_COLOR("two_bg"),
-    THREE_IMG("three_img"),
-    SKIN_CHANGE_TEXT_COLOR("skin_change_text_color"),
-    SKIN_CHANGE_BG_COLOR("skin_change_bg"),
-}
-
-object Skins {
-    val SkinOne = skinOf(
-        SkinKey.PAGE_BG to "bg_73.webp",
-        SkinKey.TITLE_BG_COLOR to "#FFFFFF",
-        SkinKey.TITLE_TEXT_COLOR to "#333333",
-        SkinKey.VIEW_LINE_BG_COLOR to "#EEEEEE",
-        SkinKey.ONE_TEXT_COLOR to "#000000",
-        SkinKey.TWO_TEXT_COLOR to "#FFFFFF",
-        SkinKey.TWO_BG_COLOR to "#000000",
-        SkinKey.THREE_IMG to "9dTg44Qhx1Q.webp",
-        SkinKey.SKIN_CHANGE_TEXT_COLOR to "#000000",
-        SkinKey.SKIN_CHANGE_BG_COLOR to "#FFFFFF",
-    )
-
-    val SkinTwo = skinOf(
-        SkinKey.PAGE_BG to "bg_115.webp",
-        SkinKey.TITLE_BG_COLOR to "#000000",
-        SkinKey.TITLE_TEXT_COLOR to "#DDDDDD",
-        SkinKey.VIEW_LINE_BG_COLOR to "#111111",
-        SkinKey.ONE_TEXT_COLOR to "#FFFFFF",
-        SkinKey.TWO_TEXT_COLOR to "#000000",
-        SkinKey.TWO_BG_COLOR to "#FFFFFF",
-        SkinKey.THREE_IMG to "xJ2tjuUHD9M.webp",
-        SkinKey.SKIN_CHANGE_TEXT_COLOR to "#FFFFFF",
-        SkinKey.SKIN_CHANGE_BG_COLOR to "#000000",
-    )
-    val Default = SkinOne
-}
+import java.util.*
 
 object UISkin {
-    private val currentSkin = MutableLiveData<Skin>()
+    private val currentSkin = MutableLiveData(SkinConst.Default)
 
-    init {
-        update(Skins.Default)
+    fun binding(owner: LifecycleOwner) {
+        currentSkin.observe(owner) { skin ->
+            skinViewMap.forEach { it.key.setViewSkins(skin, it.value) }
+        }
     }
 
-    fun binding(act: FragmentActivity) {
-        val views = act.window.decorView.getAllChildViews()
-
-        currentSkin.observe(act) { skin ->
-            for (view in views) {
-                val keys = view.getTag(R.id.skin_tag)
-                if (keys is Array<*> && keys.size > 0 && keys[0] is SkinKey) {
-                    keys.forEach { key ->
-                        val value = skin[key] ?: Skins.Default[key] ?: return@forEach
-                        when (key) {
-                            SkinKey.PAGE_BG -> {
-                                view.setBackgroundDrawable(view.context.getAssetsDrawable(value))
-                            }
-                            SkinKey.TITLE_BG_COLOR, SkinKey.VIEW_LINE_BG_COLOR, SkinKey.TWO_BG_COLOR, SkinKey.SKIN_CHANGE_BG_COLOR -> {
-                                view.setBackgroundColor(Color.parseColor(value))
-                            }
-                            SkinKey.TITLE_TEXT_COLOR, SkinKey.ONE_TEXT_COLOR, SkinKey.TWO_TEXT_COLOR, SkinKey.SKIN_CHANGE_TEXT_COLOR -> {
-                                if (view is TextView) {
-                                    view.setTextColor(Color.parseColor(value))
-                                }
-                            }
-                            SkinKey.THREE_IMG -> {
-                                if (view is ImageView) {
-                                    view.setImageDrawable(view.context.getAssetsDrawable(value))
-                                }
-                            }
+    private fun View.setViewSkins(skin: Skin, keys: Array<out String>) {
+        if (keys.isNotEmpty()) {
+            for (key in keys) {
+                val value = skin[key] ?: SkinConst.Default[key] ?: break
+                when (key) {
+                    SkinConst.PAGE_BG -> {
+                        setBackgroundDrawable(context.getAssetsDrawable(value))
+                    }
+                    SkinConst.TITLE_BG_COLOR, SkinConst.VIEW_LINE_BG_COLOR, SkinConst.TWO_BG_COLOR, SkinConst.LIST_BG_COLOR, SkinConst.SKIN_CHANGE_BG_COLOR -> {
+                        setBackgroundColor(Color.parseColor(value))
+                    }
+                    SkinConst.TITLE_TEXT_COLOR, SkinConst.ONE_TEXT_COLOR, SkinConst.TWO_TEXT_COLOR, SkinConst.SKIN_CHANGE_TEXT_COLOR -> {
+                        if (this is TextView) {
+                            setTextColor(Color.parseColor(value))
+                        }
+                    }
+                    SkinConst.THREE_IMG -> {
+                        if (this is ImageView) {
+                            setImageDrawable(context.getAssetsDrawable(value))
                         }
                     }
                 }
@@ -97,21 +47,8 @@ object UISkin {
         }
     }
 
-    fun update(skin: Skin) {
+    fun change(skin: Skin) {
         currentSkin.postValue(skin)
-    }
-
-    private fun View.getAllChildViews(): List<View> {
-        val views = arrayListOf<View>()
-        views.add(this)
-        if (this is ViewGroup) {
-            for (i in 0..childCount) {
-                getChildAt(i)?.let {
-                    views.addAll(it.getAllChildViews())
-                }
-            }
-        }
-        return views
     }
 
     private fun Context.getAssetsDrawable(fileName: String): Drawable? {
@@ -133,8 +70,57 @@ object UISkin {
         return drawable
     }
 
+    private val skinViewMap = WeakHashMap<View, Array<out String>>()
+
+    fun View.bindSkinValue(vararg key: String) {
+        // 应用当前皮肤
+        currentSkin.value?.let { setViewSkins(it, key) }
+        // 加入皮肤管理 Map
+        skinViewMap[this] = key
+    }
 }
 
-fun View.bindSkinValue(vararg key: SkinKey) {
-    setTag(R.id.skin_tag, key)
+object SkinConst {
+    const val PAGE_BG = "page_bg"
+    const val TITLE_BG_COLOR = "title_bg"
+    const val TITLE_TEXT_COLOR = "title_text_color"
+    const val VIEW_LINE_BG_COLOR = "view_line_bg"
+    const val ONE_TEXT_COLOR = "one_text_color"
+    const val TWO_TEXT_COLOR = "two_text_color"
+    const val TWO_BG_COLOR = "two_bg"
+    const val THREE_IMG = "three_img"
+    const val LIST_BG_COLOR = "list_bg_color"
+    const val SKIN_CHANGE_TEXT_COLOR = "skin_change_text_color"
+    const val SKIN_CHANGE_BG_COLOR = "skin_change_bg"
+
+    val SkinOne: Skin = hashMapOf(
+        PAGE_BG to "bg_73.webp",
+        TITLE_BG_COLOR to "#FFFFFF",
+        TITLE_TEXT_COLOR to "#333333",
+        VIEW_LINE_BG_COLOR to "#EEEEEE",
+        ONE_TEXT_COLOR to "#000000",
+        TWO_TEXT_COLOR to "#FFFFFF",
+        TWO_BG_COLOR to "#000000",
+        THREE_IMG to "9dTg44Qhx1Q.webp",
+        LIST_BG_COLOR to "#3399EE",
+        SKIN_CHANGE_TEXT_COLOR to "#000000",
+        SKIN_CHANGE_BG_COLOR to "#FFFFFF",
+    )
+
+    val SkinTwo: Skin = hashMapOf(
+        PAGE_BG to "bg_115.webp",
+        TITLE_BG_COLOR to "#000000",
+        TITLE_TEXT_COLOR to "#DDDDDD",
+        VIEW_LINE_BG_COLOR to "#111111",
+        ONE_TEXT_COLOR to "#FFFFFF",
+        TWO_TEXT_COLOR to "#000000",
+        TWO_BG_COLOR to "#FFFFFF",
+        THREE_IMG to "xJ2tjuUHD9M.webp",
+        LIST_BG_COLOR to "#EE9933",
+        SKIN_CHANGE_TEXT_COLOR to "#FFFFFF",
+        SKIN_CHANGE_BG_COLOR to "#000000",
+    )
+    val Default: Skin = SkinOne
 }
+
+private typealias Skin = HashMap<String, String>
